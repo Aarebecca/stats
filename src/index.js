@@ -76,7 +76,10 @@ async function getOpenIssueCount() {
   const open_issues = await request(
     `issues?q=repo:${repo}+is:issue+is:open+created:${since}..${until}`
   );
-  return open_issues.total_count;
+  return {
+    count: open_issues.total_count,
+    issues: open_issues.items,
+  };
 }
 
 /**
@@ -87,7 +90,10 @@ async function getClosedIssueCount() {
   const closed_issues = await request(
     `issues?q=repo:${repo}+is:issue+is:closed+created:${since}..${until}`
   );
-  return closed_issues.total_count;
+  return {
+    count: closed_issues.total_count,
+    issues: closed_issues.items,
+  };
 }
 
 /**
@@ -98,7 +104,10 @@ async function getOpenPRCount() {
   const open_prs = await request(
     `issues?q=repo:${repo}+is:pr+is:open+created:${since}..${until}`
   );
-  return open_prs.total_count;
+  return {
+    count: open_prs.total_count,
+    prs: open_prs.items,
+  };
 }
 
 /**
@@ -109,7 +118,10 @@ async function getClosedPRCount() {
   const closed_prs = await request(
     `issues?q=repo:${repo}+is:pr+is:closed+created:${since}..${until}`
   );
-  return closed_prs.total_count;
+  return {
+    count: closed_prs.total_count,
+    prs: closed_prs.items,
+  };
 }
 
 /**
@@ -143,7 +155,7 @@ async function getContributorIds() {
   const contributors = Array.from(
     new Set(result.items.map((item) => item.author.login))
   );
-  return contributors.join(',') + ` (${contributors.length})`;
+  return contributors;
 }
 
 const Metric = [
@@ -157,62 +169,89 @@ const Metric = [
   getContributorIds,
 ];
 
-async function stats(metric = Metric, range = getRange()) {
+async function stats(metric = Metric) {
   const data = await Promise.all(metric.map((fn) => fn()));
   const [
     commit_count,
-    open_issue_count,
-    closed_issue_count,
-    open_pr_count,
-    closed_pr_count,
+    { count: open_issue_count, issues: open_issues },
+    { count: closed_issue_count, issues: closed_issues },
+    { count: open_pr_count, prs: open_prs },
+    { count: closed_pr_count, prs: closed_prs },
     added_line_count,
     deleted_line_count,
-    contributor_count,
+    contributors,
   ] = data;
-  const [start_date, end_date] = range;
-  const result = {
-    repo,
-    start_date,
-    end_date,
+  return {
     commit_count,
     open_issue_count,
+    open_issues,
     closed_issue_count,
+    closed_issues,
     open_pr_count,
+    open_prs,
     closed_pr_count,
+    closed_prs,
     added_line_count,
     deleted_line_count,
-    contributor_count,
+    contributors,
   };
-  return result;
 }
 
-const nameMap = {
-  repo: '仓库',
-  metric: '指标',
-  value: '详情',
-  start_date: '开始日期',
-  end_date: '结束日期',
-  commit_count: '提交数',
-  total_issue_count: '总 Issue 数',
-  open_issue_count: '新增 Issue',
-  closed_issue_count: '关闭 Issue',
-  total_pr_count: '总 PR 数',
-  open_pr_count: '新增 PR',
-  closed_pr_count: '关闭 PR',
-  added_line_count: '新增行数',
-  deleted_line_count: '删除行数',
-  total_line_count: '总行数',
-  contributor_count: '贡献者数',
-};
-
 function exportResultToMarkdown(rp) {
-  const header = `| ${nameMap.metric} | ${nameMap.value} |\n| --- | --- |\n`;
-  const content = Object.entries(rp)
-    .map(([key, value]) => {
-      return `| ${nameMap[key]} | ${value} |`;
-    })
-    .join('\n');
-  return header + content;
+  const {
+    commit_count,
+    open_issue_count,
+    open_issues,
+    closed_issue_count,
+    closed_issues,
+    open_pr_count,
+    open_prs,
+    closed_pr_count,
+    closed_prs,
+    added_line_count,
+    deleted_line_count,
+    contributors,
+  } = rp;
+  const header = `| 指标 | 详情 |\n| --- | --- |\n`;
+  const content = `|时间| ${range.join('-')} |
+|仓库|\`${repo}\`|
+|Commit 数|\`${commit_count}\`|
+|Issue|新增: \`${open_issue_count}\` 关闭: \`${closed_issue_count}\`|
+|PR|新增: \`${open_pr_count}\` 关闭: \`${closed_pr_count}\`|
+|代码数|新增: \`${added_line_count}\` 删除: \`${deleted_line_count}\`|
+|参与人|共\`${contributors.length}\`人|\n`;
+
+  const detail = `## 本周新增 Issue
+
+${open_issues
+  .map((issue) => `- ${issue.title} [#${issue.number}](${issue.html_url})`)
+  .join('\n')}
+
+## 本周关闭 Issue (共 ${closed_issues.length} 个)
+
+${closed_issues
+  .map((issue) => `- ${issue.title} [#${issue.number}](${issue.html_url})`)
+  .join('\n')}
+
+## 本周新增 PR (共 ${open_prs.length} 个)
+
+${open_prs
+  .map((pr) => `- ${pr.title} [#${pr.number}](${pr.html_url})`)
+  .join('\n')}
+
+## 本周关闭 PR (共 ${closed_prs.length} 个)
+
+${closed_prs
+  .map((pr) => `- ${pr.title} [#${pr.number}](${pr.html_url})`)
+  .join('\n')}
+
+## 本周贡献者 (共 ${contributors.length} 人)
+
+${contributors.map((contributor) => `- ${contributor}`).join('\n')}
+
+`;
+
+  return header + content + detail;
 }
 
 function isBranchExist(branch) {

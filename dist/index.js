@@ -2255,28 +2255,40 @@ async function getOpenIssueCount() {
   const open_issues = await request(
     `issues?q=repo:${repo}+is:issue+is:open+created:${since}..${until}`
   );
-  return open_issues.total_count;
+  return {
+    count: open_issues.total_count,
+    issues: open_issues.items
+  };
 }
 async function getClosedIssueCount() {
   const [since, until] = range;
   const closed_issues = await request(
     `issues?q=repo:${repo}+is:issue+is:closed+created:${since}..${until}`
   );
-  return closed_issues.total_count;
+  return {
+    count: closed_issues.total_count,
+    issues: closed_issues.items
+  };
 }
 async function getOpenPRCount() {
   const [since, until] = range;
   const open_prs = await request(
     `issues?q=repo:${repo}+is:pr+is:open+created:${since}..${until}`
   );
-  return open_prs.total_count;
+  return {
+    count: open_prs.total_count,
+    prs: open_prs.items
+  };
 }
 async function getClosedPRCount() {
   const [since, until] = range;
   const closed_prs = await request(
     `issues?q=repo:${repo}+is:pr+is:closed+created:${since}..${until}`
   );
-  return closed_prs.total_count;
+  return {
+    count: closed_prs.total_count,
+    prs: closed_prs.items
+  };
 }
 async function getAddedLineCount() {
   const [since, until] = range;
@@ -2298,7 +2310,7 @@ async function getContributorIds() {
   const contributors = Array.from(
     new Set(result.items.map((item) => item.author.login))
   );
-  return contributors.join(",") + ` (${contributors.length})`;
+  return contributors;
 }
 var Metric = [
   getCommitCount,
@@ -2310,60 +2322,81 @@ var Metric = [
   getDeletedLineCount,
   getContributorIds
 ];
-async function stats(metric = Metric, range2 = getRange()) {
+async function stats(metric = Metric) {
   const data = await Promise.all(metric.map((fn) => fn()));
   const [
     commit_count,
-    open_issue_count,
-    closed_issue_count,
-    open_pr_count,
-    closed_pr_count,
+    { count: open_issue_count, issues: open_issues },
+    { count: closed_issue_count, issues: closed_issues },
+    { count: open_pr_count, prs: open_prs },
+    { count: closed_pr_count, prs: closed_prs },
     added_line_count,
     deleted_line_count,
-    contributor_count
+    contributors
   ] = data;
-  const [start_date, end_date] = range2;
-  const result = {
-    repo,
-    start_date,
-    end_date,
+  return {
     commit_count,
     open_issue_count,
+    open_issues,
     closed_issue_count,
+    closed_issues,
     open_pr_count,
+    open_prs,
     closed_pr_count,
+    closed_prs,
     added_line_count,
     deleted_line_count,
-    contributor_count
+    contributors
   };
-  return result;
 }
-var nameMap = {
-  repo: "\u4ED3\u5E93",
-  metric: "\u6307\u6807",
-  value: "\u8BE6\u60C5",
-  start_date: "\u5F00\u59CB\u65E5\u671F",
-  end_date: "\u7ED3\u675F\u65E5\u671F",
-  commit_count: "\u63D0\u4EA4\u6570",
-  total_issue_count: "\u603B Issue \u6570",
-  open_issue_count: "\u65B0\u589E Issue",
-  closed_issue_count: "\u5173\u95ED Issue",
-  total_pr_count: "\u603B PR \u6570",
-  open_pr_count: "\u65B0\u589E PR",
-  closed_pr_count: "\u5173\u95ED PR",
-  added_line_count: "\u65B0\u589E\u884C\u6570",
-  deleted_line_count: "\u5220\u9664\u884C\u6570",
-  total_line_count: "\u603B\u884C\u6570",
-  contributor_count: "\u8D21\u732E\u8005\u6570"
-};
 function exportResultToMarkdown(rp) {
-  const header = `| ${nameMap.metric} | ${nameMap.value} |
+  const {
+    commit_count,
+    open_issue_count,
+    open_issues,
+    closed_issue_count,
+    closed_issues,
+    open_pr_count,
+    open_prs,
+    closed_pr_count,
+    closed_prs,
+    added_line_count,
+    deleted_line_count,
+    contributors
+  } = rp;
+  const header = `| \u6307\u6807 | \u8BE6\u60C5 |
 | --- | --- |
 `;
-  const content = Object.entries(rp).map(([key, value]) => {
-    return `| ${nameMap[key]} | ${value} |`;
-  }).join("\n");
-  return header + content;
+  const content = `|\u65F6\u95F4| ${range.join("-")} |
+|\u4ED3\u5E93|\`${repo}\`|
+|Commit \u6570|\`${commit_count}\`|
+|Issue|\u65B0\u589E: \`${open_issue_count}\` \u5173\u95ED: \`${closed_issue_count}\`|
+|PR|\u65B0\u589E: \`${open_pr_count}\` \u5173\u95ED: \`${closed_pr_count}\`|
+|\u4EE3\u7801\u6570|\u65B0\u589E: \`${added_line_count}\` \u5220\u9664: \`${deleted_line_count}\`|
+|\u53C2\u4E0E\u4EBA|\u5171\`${contributors.length}\`\u4EBA|
+`;
+  const detail = `## \u672C\u5468\u65B0\u589E Issue
+
+${open_issues.map((issue) => `- ${issue.title} [#${issue.number}](${issue.html_url})`).join("\n")}
+
+## \u672C\u5468\u5173\u95ED Issue (\u5171 ${closed_issues.length} \u4E2A)
+
+${closed_issues.map((issue) => `- ${issue.title} [#${issue.number}](${issue.html_url})`).join("\n")}
+
+## \u672C\u5468\u65B0\u589E PR (\u5171 ${open_prs.length} \u4E2A)
+
+${open_prs.map((pr) => `- ${pr.title} [#${pr.number}](${pr.html_url})`).join("\n")}
+
+## \u672C\u5468\u5173\u95ED PR (\u5171 ${closed_prs.length} \u4E2A)
+
+${closed_prs.map((pr) => `- ${pr.title} [#${pr.number}](${pr.html_url})`).join("\n")}
+
+## \u672C\u5468\u8D21\u732E\u8005 (\u5171 ${contributors.length} \u4EBA)
+
+${contributors.map((contributor) => `- ${contributor}`).join("\n")}
+
+`;
+  return header + content + detail;
 }
 function isBranchExist(branch) {
   try {
