@@ -3,7 +3,11 @@
  */
 
 const { execSync } = require('child_process');
+const core = require('@actions/core');
 const https = require('https');
+const fs = require('fs');
+
+const repo = process.env.GITHUB_REPOSITORY;
 
 /**
  * get today and last week in format YYYY-MM-DD
@@ -18,6 +22,8 @@ function getRange() {
   const format = (date) => date.toISOString().split('T')[0];
   return [format(lastWeek), format(today)];
 }
+
+const range = getRange();
 
 /**
  * execute command in shell
@@ -54,7 +60,7 @@ async function request(search) {
 /**
  * get commit count in range
  */
-function getCommitCount(range) {
+function getCommitCount() {
   const [since, until] = range;
   const command = `git rev-list --count --since=${since} --before=${until} HEAD`;
   const result = exec(command);
@@ -67,10 +73,10 @@ const { OWNER, REPO } = process.env;
 /**
  * get open issue count in range
  */
-async function getOpenIssueCount(range) {
+async function getOpenIssueCount() {
   const [since, until] = range;
   const open_issues = await request(
-    `issues?q=repo:${OWNER}/${REPO}+is:issue+is:open+created:${since}..${until}`
+    `issues?q=repo:${repo}+is:issue+is:open+created:${since}..${until}`
   );
   return open_issues.total_count;
 }
@@ -78,10 +84,10 @@ async function getOpenIssueCount(range) {
 /**
  * get closed issue count in range
  */
-async function getClosedIssueCount(range) {
+async function getClosedIssueCount() {
   const [since, until] = range;
   const closed_issues = await request(
-    `issues?q=repo:${OWNER}/${REPO}+is:issue+is:closed+created:${since}..${until}`
+    `issues?q=repo:${repo}+is:issue+is:closed+created:${since}..${until}`
   );
   return closed_issues.total_count;
 }
@@ -89,10 +95,10 @@ async function getClosedIssueCount(range) {
 /**
  * get open pr count in range
  */
-async function getOpenPRCount(range) {
+async function getOpenPRCount() {
   const [since, until] = range;
   const open_prs = await request(
-    `issues?q=repo:${OWNER}/${REPO}+is:pr+is:open+created:${since}..${until}`
+    `issues?q=repo:${repo}+is:pr+is:open+created:${since}..${until}`
   );
   return open_prs.total_count;
 }
@@ -100,10 +106,10 @@ async function getOpenPRCount(range) {
 /**
  * get closed pr count in range
  */
-async function getClosedPRCount(range) {
+async function getClosedPRCount() {
   const [since, until] = range;
   const closed_prs = await request(
-    `issues?q=repo:${OWNER}/${REPO}+is:pr+is:closed+created:${since}..${until}`
+    `issues?q=repo:${repo}+is:pr+is:closed+created:${since}..${until}`
   );
   return closed_prs.total_count;
 }
@@ -111,7 +117,7 @@ async function getClosedPRCount(range) {
 /**
  * get added line count in range
  */
-async function getAddedLineCount(range) {
+async function getAddedLineCount() {
   const [since, until] = range;
   const command = `git log --since=${since} --before=${until} --pretty=tformat: --numstat | awk '{ add += $1 } END { print add }' -`;
   const result = exec(command);
@@ -121,7 +127,7 @@ async function getAddedLineCount(range) {
 /**
  * get deleted line count in range
  */
-async function getDeletedLineCount(range) {
+async function getDeletedLineCount() {
   const [since, until] = range;
   const command = `git log --since=${since} --before=${until} --pretty=tformat: --numstat | awk '{ del += $2 } END { print del }' -`;
   const result = exec(command);
@@ -131,10 +137,10 @@ async function getDeletedLineCount(range) {
 /**
  * get contributors' id in range
  */
-async function getContributorIds(range) {
+async function getContributorIds() {
   const [since, until] = range;
   const result = await request(
-    `commits?q=repo:${OWNER}/${REPO}+author-date:${since}..${until}`
+    `commits?q=repo:${repo}+author-date:${since}..${until}`
   );
   const contributors = Array.from(
     new Set(result.items.map((item) => item.author.login))
@@ -154,7 +160,7 @@ const Metric = [
 ];
 
 async function stats(metric = Metric, range = getRange()) {
-  const data = await Promise.all(metric.map((fn) => fn(range)));
+  const data = await Promise.all(metric.map((fn) => fn()));
   const [
     commit_count,
     open_issue_count,
@@ -213,10 +219,48 @@ function exportResultToMarkdown(rp) {
   return header + content;
 }
 
+async function submit(md) {
+  try {
+    // 获取保存到仓库的标志位
+    const saveToRepo = core.getInput('SAVE_TO_REPO');
+    if (saveToRepo === 'true') {
+      // 获取分支名称或使用默认值
+      const branchName = core.getInput('REPORT_BRANCH');
+
+      // 配置 Git 用户信息
+      execSync('git config --global user.name "GitHub Actions"');
+      execSync('git config --global user.email "actions@github.com"');
+
+      // 判断分支是否存在，不存在则创建
+      const isBranchExist = execSync(`git rev-parse --verify "${branchName}"`, {
+        stdio: 'ignore',
+      }).error;
+      if (isBranchExist) {
+        execSync(`git checkout --orphan "${branchName}"`);
+        execSync('git rm -rf .');
+        execSync('git commit --allow-empty -m "Create empty branch"');
+      } else {
+        execSync(`git checkout "${branchName}"`);
+      }
+
+      const file = range[1];
+      // 生成 Markdown 表格文件
+      fs.writeFileSync(`${file}.md`, md);
+
+      // 提交 Markdown 表格文件
+      execSync(`git add ${file}.md`);
+      execSync(`git commit -m "chore: Weekly stats (${file})."`);
+      execSync(`git push origin "${branchName}"`);
+    }
+  } catch (error) {
+    core.setFailed(error.message);
+  }
+}
+
 async function run() {
   const rp = await stats();
   const content = exportResultToMarkdown(rp);
-  console.log(content);
+  submit(content);
 }
 
 run();
