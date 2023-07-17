@@ -68,3 +68,7 @@ jobs:
           git push origin "$branch_name"
         env:
           ACCESS_TOKEN: ${{ inputs.ACCESS_TOKEN }}
+
+branding:
+  icon: calendar
+  color: yellow
