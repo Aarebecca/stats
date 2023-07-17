@@ -39,7 +39,7 @@ async function request(search) {
   const url = `https://api.github.com/search/${search}`;
   const headers = {
     'User-Agent': 'request',
-    Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+    Authorization: `Bearer ${core.getInput('GITHUB_TOKEN')}`,
   };
   // make post request
   return new Promise((resolve, reject) => {
@@ -67,8 +67,6 @@ function getCommitCount() {
   // format
   return parseInt(result.replace('\n', ''));
 }
-
-const { OWNER, REPO } = process.env;
 
 /**
  * get open issue count in range
@@ -173,8 +171,7 @@ async function stats(metric = Metric, range = getRange()) {
   ] = data;
   const [start_date, end_date] = range;
   const result = {
-    owner: OWNER,
-    repo: REPO,
+    repo,
     start_date,
     end_date,
     commit_count,
@@ -190,7 +187,6 @@ async function stats(metric = Metric, range = getRange()) {
 }
 
 const nameMap = {
-  owner: '所有者',
   repo: '仓库',
   metric: '指标',
   value: '详情',
@@ -219,7 +215,19 @@ function exportResultToMarkdown(rp) {
   return header + content;
 }
 
+function isBranchExist(branch) {
+  try {
+    execSync(`git rev-parse --verify "${branch}"`, {
+      stdio: 'ignore',
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function submit(md) {
+  console.log(md);
   try {
     // 获取保存到仓库的标志位
     const saveToRepo = core.getInput('SAVE_TO_REPO');
@@ -228,19 +236,16 @@ async function submit(md) {
       const branchName = core.getInput('REPORT_BRANCH');
 
       // 配置 Git 用户信息
-      execSync('git config --global user.name "GitHub Actions"');
-      execSync('git config --global user.email "actions@github.com"');
+      exec('git config --global user.name "GitHub Actions"');
+      exec('git config --global user.email "actions@github.com"');
 
       // 判断分支是否存在，不存在则创建
-      const isBranchExist = execSync(`git rev-parse --verify "${branchName}"`, {
-        stdio: 'ignore',
-      }).error;
-      if (isBranchExist) {
-        execSync(`git checkout --orphan "${branchName}"`);
-        execSync('git rm -rf .');
-        execSync('git commit --allow-empty -m "Create empty branch"');
+      if (!isBranchExist(branchName)) {
+        exec(`git checkout --orphan "${branchName}"`);
+        exec('git rm -rf .');
+        exec('git commit --allow-empty -m "Create empty branch"');
       } else {
-        execSync(`git checkout "${branchName}"`);
+        exec(`git checkout "${branchName}"`);
       }
 
       const file = range[1];
@@ -248,9 +253,9 @@ async function submit(md) {
       fs.writeFileSync(`${file}.md`, md);
 
       // 提交 Markdown 表格文件
-      execSync(`git add ${file}.md`);
-      execSync(`git commit -m "chore: Weekly stats (${file})."`);
-      execSync(`git push origin "${branchName}"`);
+      exec(`git add ${file}.md`);
+      exec(`git commit -m "chore: Weekly stats (${file})."`);
+      exec(`git push origin "${branchName}"`);
     }
   } catch (error) {
     core.setFailed(error.message);

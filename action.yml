@@ -10,9 +10,6 @@ inputs:
     required: false
     default: true
     description: 'Whether to save the generated report to the repository.'
-  ACCESS_TOKEN:
-    required: false
-    description: 'ACCESS_TOKEN'
   REPORT_BRANCH:
     required: false
     description: 'Branch to push report.'
