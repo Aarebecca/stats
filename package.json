@@ -1,0 +1,33 @@
+{
+  "name": "stats",
+  "version": "1.0.1",
+  "description": "Generate weekly stats",
+  "main": "src",
+  "files": [
+    "dist",
+    "action.yml"
+  ],
+  "scripts": {
+    "build": "father build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aarebecca/stats.git"
+  },
+  "keywords": [
+    "Monitoring",
+    "Reporting"
+  ],
+  "author": "Aaron",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Aarebecca/stats/issues"
+  },
+  "homepage": "https://github.com/Aarebecca/stats#readme",
+  "dependencies": {
+    "@actions/core": "^1.10.0"
+  },
+  "devDependencies": {
+    "father": "^4.2.3"
+  }
+}
