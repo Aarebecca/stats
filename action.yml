@@ -46,7 +46,7 @@ jobs:
           node scripts/stats.js > ${{ steps.get_env.outputs.now }}.md
 
       - name: Commit And Push
-        if: ${{ inputs.SAVE_TO_REPO == 'true' }}
+        if: ${{ inputs.SAVE_TO_REPO == true }}
         run: |
           # 获取分支名称或使用默认值
           branch_name=${{ inputs.REPORT_BRANCH }}
