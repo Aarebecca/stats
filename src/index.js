@@ -213,7 +213,7 @@ function exportResultToMarkdown(rp) {
     contributors,
   } = rp;
   const header = `| 指标 | 详情 |\n| --- | --- |\n`;
-  const content = `|时间| ${range.join('-')} |
+  const content = `|时间| \`${range[0]}\`-\`${range[1]}\` |
 |仓库|\`${repo}\`|
 |Commit 数|\`${commit_count}\`|
 |Issue|新增: \`${open_issue_count}\` 关闭: \`${closed_issue_count}\`|
@@ -221,31 +221,31 @@ function exportResultToMarkdown(rp) {
 |代码数|新增: \`${added_line_count}\` 删除: \`${deleted_line_count}\`|
 |参与人|共\`${contributors.length}\`人|\n`;
 
-  const detail = `## 本周新增 Issue
+  const detail = `### 新增 Issue
 
 ${open_issues
-  .map((issue) => `- ${issue.title} [#${issue.number}](${issue.html_url})`)
+  .map((issue) => `- [${issue.title} #${issue.number}](${issue.html_url})`)
   .join('\n')}
 
-## 本周关闭 Issue (共 ${closed_issues.length} 个)
+### 关闭 Issue (共 ${closed_issues.length} 个)
 
 ${closed_issues
-  .map((issue) => `- ${issue.title} [#${issue.number}](${issue.html_url})`)
+  .map((issue) => `- [${issue.title} #${issue.number}](${issue.html_url})`)
   .join('\n')}
 
-## 本周新增 PR (共 ${open_prs.length} 个)
+### 新增 PR (共 ${open_prs.length} 个)
 
 ${open_prs
-  .map((pr) => `- ${pr.title} [#${pr.number}](${pr.html_url})`)
+  .map((pr) => `- [${pr.title} #${pr.number}](${pr.html_url})`)
   .join('\n')}
 
-## 本周关闭 PR (共 ${closed_prs.length} 个)
+### 关闭 PR (共 ${closed_prs.length} 个)
 
 ${closed_prs
-  .map((pr) => `- ${pr.title} [#${pr.number}](${pr.html_url})`)
+  .map((pr) => `- [${pr.title} #${pr.number}](${pr.html_url})`)
   .join('\n')}
 
-## 本周贡献者 (共 ${contributors.length} 人)
+### 贡献者 (共 ${contributors.length} 人)
 
 ${contributors.map((contributor) => `- ${contributor}`).join('\n')}
 

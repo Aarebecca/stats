@@ -2367,7 +2367,7 @@ function exportResultToMarkdown(rp) {
   const header = `| \u6307\u6807 | \u8BE6\u60C5 |
 | --- | --- |
 `;
-  const content = `|\u65F6\u95F4| ${range.join("-")} |
+  const content = `|\u65F6\u95F4| \`${range[0]}\`-\`${range[1]}\` |
 |\u4ED3\u5E93|\`${repo}\`|
 |Commit \u6570|\`${commit_count}\`|
 |Issue|\u65B0\u589E: \`${open_issue_count}\` \u5173\u95ED: \`${closed_issue_count}\`|
@@ -2375,23 +2375,23 @@ function exportResultToMarkdown(rp) {
 |\u4EE3\u7801\u6570|\u65B0\u589E: \`${added_line_count}\` \u5220\u9664: \`${deleted_line_count}\`|
 |\u53C2\u4E0E\u4EBA|\u5171\`${contributors.length}\`\u4EBA|
 `;
-  const detail = `## \u672C\u5468\u65B0\u589E Issue
+  const detail = `### \u65B0\u589E Issue
 
-${open_issues.map((issue) => `- ${issue.title} [#${issue.number}](${issue.html_url})`).join("\n")}
+${open_issues.map((issue) => `- [${issue.title} #${issue.number}](${issue.html_url})`).join("\n")}
 
-## \u672C\u5468\u5173\u95ED Issue (\u5171 ${closed_issues.length} \u4E2A)
+### \u5173\u95ED Issue (\u5171 ${closed_issues.length} \u4E2A)
 
-${closed_issues.map((issue) => `- ${issue.title} [#${issue.number}](${issue.html_url})`).join("\n")}
+${closed_issues.map((issue) => `- [${issue.title} #${issue.number}](${issue.html_url})`).join("\n")}
 
-## \u672C\u5468\u65B0\u589E PR (\u5171 ${open_prs.length} \u4E2A)
+### \u65B0\u589E PR (\u5171 ${open_prs.length} \u4E2A)
 
-${open_prs.map((pr) => `- ${pr.title} [#${pr.number}](${pr.html_url})`).join("\n")}
+${open_prs.map((pr) => `- [${pr.title} #${pr.number}](${pr.html_url})`).join("\n")}
 
-## \u672C\u5468\u5173\u95ED PR (\u5171 ${closed_prs.length} \u4E2A)
+### \u5173\u95ED PR (\u5171 ${closed_prs.length} \u4E2A)
 
-${closed_prs.map((pr) => `- ${pr.title} [#${pr.number}](${pr.html_url})`).join("\n")}
+${closed_prs.map((pr) => `- [${pr.title} #${pr.number}](${pr.html_url})`).join("\n")}
 
-## \u672C\u5468\u8D21\u732E\u8005 (\u5171 ${contributors.length} \u4EBA)
+### \u8D21\u732E\u8005 (\u5171 ${contributors.length} \u4EBA)
 
 ${contributors.map((contributor) => `- ${contributor}`).join("\n")}
 
