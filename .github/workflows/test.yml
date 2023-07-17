@@ -1,6 +1,8 @@
 name: Weekly Stats
 
-on: [push]
+on:
+  schedule:
+    - cron: '0 20 * * 4'
 
 jobs:
   run:
