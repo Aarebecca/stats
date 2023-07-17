@@ -8,7 +8,7 @@
     "action.yml"
   ],
   "scripts": {
-    "build": "father build"
+    "build": "node build.js"
   },
   "repository": {
     "type": "git",
@@ -28,6 +28,6 @@
     "@actions/core": "^1.10.0"
   },
   "devDependencies": {
-    "father": "^4.2.3"
+    "esbuild": "^0.18.13"
   }
 }
