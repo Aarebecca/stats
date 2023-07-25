@@ -8,7 +8,8 @@
     "action.yml"
   ],
   "scripts": {
-    "build": "node build.js"
+    "build": "node build.js",
+    "manual": "cross-env MANUAL=true node src/index.js"
   },
   "repository": {
     "type": "git",
@@ -25,9 +26,11 @@
   },
   "homepage": "https://github.com/Aarebecca/stats#readme",
   "dependencies": {
-    "@actions/core": "^1.10.0"
+    "@actions/core": "^1.10.0",
+    "lodash.memoize": "^4.1.2"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "esbuild": "^0.18.13"
   }
 }

@@ -32,6 +32,238 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
+// node_modules/_lodash.memoize@4.1.2@lodash.memoize/index.js
+var require_lodash_memoize_4_1_2_lodash = __commonJS({
+  "node_modules/_lodash.memoize@4.1.2@lodash.memoize/index.js"(exports, module2) {
+    var FUNC_ERROR_TEXT = "Expected a function";
+    var HASH_UNDEFINED = "__lodash_hash_undefined__";
+    var funcTag = "[object Function]";
+    var genTag = "[object GeneratorFunction]";
+    var reRegExpChar = /[\\^$.*+?()[\]{}|]/g;
+    var reIsHostCtor = /^\[object .+?Constructor\]$/;
+    var freeGlobal = typeof global == "object" && global && global.Object === Object && global;
+    var freeSelf = typeof self == "object" && self && self.Object === Object && self;
+    var root = freeGlobal || freeSelf || Function("return this")();
+    function getValue(object, key) {
+      return object == null ? void 0 : object[key];
+    }
+    function isHostObject(value) {
+      var result = false;
+      if (value != null && typeof value.toString != "function") {
+        try {
+          result = !!(value + "");
+        } catch (e) {
+        }
+      }
+      return result;
+    }
+    var arrayProto = Array.prototype;
+    var funcProto = Function.prototype;
+    var objectProto = Object.prototype;
+    var coreJsData = root["__core-js_shared__"];
+    var maskSrcKey = function() {
+      var uid = /[^.]+$/.exec(coreJsData && coreJsData.keys && coreJsData.keys.IE_PROTO || "");
+      return uid ? "Symbol(src)_1." + uid : "";
+    }();
+    var funcToString = funcProto.toString;
+    var hasOwnProperty = objectProto.hasOwnProperty;
+    var objectToString = objectProto.toString;
+    var reIsNative = RegExp(
+      "^" + funcToString.call(hasOwnProperty).replace(reRegExpChar, "\\$&").replace(/hasOwnProperty|(function).*?(?=\\\()| for .+?(?=\\\])/g, "$1.*?") + "$"
+    );
+    var splice = arrayProto.splice;
+    var Map = getNative(root, "Map");
+    var nativeCreate = getNative(Object, "create");
+    function Hash(entries) {
+      var index = -1, length = entries ? entries.length : 0;
+      this.clear();
+      while (++index < length) {
+        var entry = entries[index];
+        this.set(entry[0], entry[1]);
+      }
+    }
+    function hashClear() {
+      this.__data__ = nativeCreate ? nativeCreate(null) : {};
+    }
+    function hashDelete(key) {
+      return this.has(key) && delete this.__data__[key];
+    }
+    function hashGet(key) {
+      var data = this.__data__;
+      if (nativeCreate) {
+        var result = data[key];
+        return result === HASH_UNDEFINED ? void 0 : result;
+      }
+      return hasOwnProperty.call(data, key) ? data[key] : void 0;
+    }
+    function hashHas(key) {
+      var data = this.__data__;
+      return nativeCreate ? data[key] !== void 0 : hasOwnProperty.call(data, key);
+    }
+    function hashSet(key, value) {
+      var data = this.__data__;
+      data[key] = nativeCreate && value === void 0 ? HASH_UNDEFINED : value;
+      return this;
+    }
+    Hash.prototype.clear = hashClear;
+    Hash.prototype["delete"] = hashDelete;
+    Hash.prototype.get = hashGet;
+    Hash.prototype.has = hashHas;
+    Hash.prototype.set = hashSet;
+    function ListCache(entries) {
+      var index = -1, length = entries ? entries.length : 0;
+      this.clear();
+      while (++index < length) {
+        var entry = entries[index];
+        this.set(entry[0], entry[1]);
+      }
+    }
+    function listCacheClear() {
+      this.__data__ = [];
+    }
+    function listCacheDelete(key) {
+      var data = this.__data__, index = assocIndexOf(data, key);
+      if (index < 0) {
+        return false;
+      }
+      var lastIndex = data.length - 1;
+      if (index == lastIndex) {
+        data.pop();
+      } else {
+        splice.call(data, index, 1);
+      }
+      return true;
+    }
+    function listCacheGet(key) {
+      var data = this.__data__, index = assocIndexOf(data, key);
+      return index < 0 ? void 0 : data[index][1];
+    }
+    function listCacheHas(key) {
+      return assocIndexOf(this.__data__, key) > -1;
+    }
+    function listCacheSet(key, value) {
+      var data = this.__data__, index = assocIndexOf(data, key);
+      if (index < 0) {
+        data.push([key, value]);
+      } else {
+        data[index][1] = value;
+      }
+      return this;
+    }
+    ListCache.prototype.clear = listCacheClear;
+    ListCache.prototype["delete"] = listCacheDelete;
+    ListCache.prototype.get = listCacheGet;
+    ListCache.prototype.has = listCacheHas;
+    ListCache.prototype.set = listCacheSet;
+    function MapCache(entries) {
+      var index = -1, length = entries ? entries.length : 0;
+      this.clear();
+      while (++index < length) {
+        var entry = entries[index];
+        this.set(entry[0], entry[1]);
+      }
+    }
+    function mapCacheClear() {
+      this.__data__ = {
+        "hash": new Hash(),
+        "map": new (Map || ListCache)(),
+        "string": new Hash()
+      };
+    }
+    function mapCacheDelete(key) {
+      return getMapData(this, key)["delete"](key);
+    }
+    function mapCacheGet(key) {
+      return getMapData(this, key).get(key);
+    }
+    function mapCacheHas(key) {
+      return getMapData(this, key).has(key);
+    }
+    function mapCacheSet(key, value) {
+      getMapData(this, key).set(key, value);
+      return this;
+    }
+    MapCache.prototype.clear = mapCacheClear;
+    MapCache.prototype["delete"] = mapCacheDelete;
+    MapCache.prototype.get = mapCacheGet;
+    MapCache.prototype.has = mapCacheHas;
+    MapCache.prototype.set = mapCacheSet;
+    function assocIndexOf(array, key) {
+      var length = array.length;
+      while (length--) {
+        if (eq(array[length][0], key)) {
+          return length;
+        }
+      }
+      return -1;
+    }
+    function baseIsNative(value) {
+      if (!isObject(value) || isMasked(value)) {
+        return false;
+      }
+      var pattern = isFunction(value) || isHostObject(value) ? reIsNative : reIsHostCtor;
+      return pattern.test(toSource(value));
+    }
+    function getMapData(map, key) {
+      var data = map.__data__;
+      return isKeyable(key) ? data[typeof key == "string" ? "string" : "hash"] : data.map;
+    }
+    function getNative(object, key) {
+      var value = getValue(object, key);
+      return baseIsNative(value) ? value : void 0;
+    }
+    function isKeyable(value) {
+      var type = typeof value;
+      return type == "string" || type == "number" || type == "symbol" || type == "boolean" ? value !== "__proto__" : value === null;
+    }
+    function isMasked(func) {
+      return !!maskSrcKey && maskSrcKey in func;
+    }
+    function toSource(func) {
+      if (func != null) {
+        try {
+          return funcToString.call(func);
+        } catch (e) {
+        }
+        try {
+          return func + "";
+        } catch (e) {
+        }
+      }
+      return "";
+    }
+    function memoize(func, resolver) {
+      if (typeof func != "function" || resolver && typeof resolver != "function") {
+        throw new TypeError(FUNC_ERROR_TEXT);
+      }
+      var memoized = function() {
+        var args = arguments, key = resolver ? resolver.apply(this, args) : args[0], cache = memoized.cache;
+        if (cache.has(key)) {
+          return cache.get(key);
+        }
+        var result = func.apply(this, args);
+        memoized.cache = cache.set(key, result);
+        return result;
+      };
+      memoized.cache = new (memoize.Cache || MapCache)();
+      return memoized;
+    }
+    memoize.Cache = MapCache;
+    function eq(value, other) {
+      return value === other || value !== value && other !== other;
+    }
+    function isFunction(value) {
+      var tag = isObject(value) ? objectToString.call(value) : "";
+      return tag == funcTag || tag == genTag;
+    }
+    function isObject(value) {
+      var type = typeof value;
+      return !!value && (type == "object" || type == "function");
+    }
+    module2.exports = memoize;
+  }
+});
+
 // node_modules/_@actions_core@1.10.0@@actions/core/lib/utils.js
 var require_utils = __commonJS({
   "node_modules/_@actions_core@1.10.0@@actions/core/lib/utils.js"(exports) {
@@ -654,44 +886,44 @@ var require_tunnel = __commonJS({
       return agent;
     }
     function TunnelingAgent(options) {
-      var self = this;
-      self.options = options || {};
-      self.proxyOptions = self.options.proxy || {};
-      self.maxSockets = self.options.maxSockets || http.Agent.defaultMaxSockets;
-      self.requests = [];
-      self.sockets = [];
-      self.on("free", function onFree(socket, host, port, localAddress) {
+      var self2 = this;
+      self2.options = options || {};
+      self2.proxyOptions = self2.options.proxy || {};
+      self2.maxSockets = self2.options.maxSockets || http.Agent.defaultMaxSockets;
+      self2.requests = [];
+      self2.sockets = [];
+      self2.on("free", function onFree(socket, host, port, localAddress) {
         var options2 = toOptions(host, port, localAddress);
-        for (var i = 0, len = self.requests.length; i < len; ++i) {
-          var pending = self.requests[i];
+        for (var i = 0, len = self2.requests.length; i < len; ++i) {
+          var pending = self2.requests[i];
           if (pending.host === options2.host && pending.port === options2.port) {
-            self.requests.splice(i, 1);
+            self2.requests.splice(i, 1);
             pending.request.onSocket(socket);
             return;
           }
         }
         socket.destroy();
-        self.removeSocket(socket);
+        self2.removeSocket(socket);
       });
     }
     util.inherits(TunnelingAgent, events.EventEmitter);
     TunnelingAgent.prototype.addRequest = function addRequest(req, host, port, localAddress) {
-      var self = this;
-      var options = mergeOptions({ request: req }, self.options, toOptions(host, port, localAddress));
-      if (self.sockets.length >= this.maxSockets) {
-        self.requests.push(options);
+      var self2 = this;
+      var options = mergeOptions({ request: req }, self2.options, toOptions(host, port, localAddress));
+      if (self2.sockets.length >= this.maxSockets) {
+        self2.requests.push(options);
         return;
       }
-      self.createSocket(options, function(socket) {
+      self2.createSocket(options, function(socket) {
         socket.on("free", onFree);
         socket.on("close", onCloseOrRemove);
         socket.on("agentRemove", onCloseOrRemove);
         req.onSocket(socket);
         function onFree() {
-          self.emit("free", socket, options);
+          self2.emit("free", socket, options);
         }
         function onCloseOrRemove(err) {
-          self.removeSocket(socket);
+          self2.removeSocket(socket);
           socket.removeListener("free", onFree);
           socket.removeListener("close", onCloseOrRemove);
           socket.removeListener("agentRemove", onCloseOrRemove);
@@ -699,10 +931,10 @@ var require_tunnel = __commonJS({
       });
     };
     TunnelingAgent.prototype.createSocket = function createSocket(options, cb) {
-      var self = this;
+      var self2 = this;
       var placeholder = {};
-      self.sockets.push(placeholder);
-      var connectOptions = mergeOptions({}, self.proxyOptions, {
+      self2.sockets.push(placeholder);
+      var connectOptions = mergeOptions({}, self2.proxyOptions, {
         method: "CONNECT",
         path: options.host + ":" + options.port,
         agent: false,
@@ -718,7 +950,7 @@ var require_tunnel = __commonJS({
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
       debug("making CONNECT request");
-      var connectReq = self.request(connectOptions);
+      var connectReq = self2.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
       connectReq.once("upgrade", onUpgrade);
@@ -745,7 +977,7 @@ var require_tunnel = __commonJS({
           var error = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
           error.code = "ECONNRESET";
           options.request.emit("error", error);
-          self.removeSocket(placeholder);
+          self2.removeSocket(placeholder);
           return;
         }
         if (head.length > 0) {
@@ -754,11 +986,11 @@ var require_tunnel = __commonJS({
           var error = new Error("got illegal response body from proxy");
           error.code = "ECONNRESET";
           options.request.emit("error", error);
-          self.removeSocket(placeholder);
+          self2.removeSocket(placeholder);
           return;
         }
         debug("tunneling connection has established");
-        self.sockets[self.sockets.indexOf(placeholder)] = socket;
+        self2.sockets[self2.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
@@ -771,7 +1003,7 @@ var require_tunnel = __commonJS({
         var error = new Error("tunneling socket could not be established, cause=" + cause.message);
         error.code = "ECONNRESET";
         options.request.emit("error", error);
-        self.removeSocket(placeholder);
+        self2.removeSocket(placeholder);
       }
     };
     TunnelingAgent.prototype.removeSocket = function removeSocket(socket) {
@@ -788,15 +1020,15 @@ var require_tunnel = __commonJS({
       }
     };
     function createSecureSocket(options, cb) {
-      var self = this;
-      TunnelingAgent.prototype.createSocket.call(self, options, function(socket) {
+      var self2 = this;
+      TunnelingAgent.prototype.createSocket.call(self2, options, function(socket) {
         var hostHeader = options.request.getHeader("host");
-        var tlsOptions = mergeOptions({}, self.options, {
+        var tlsOptions = mergeOptions({}, self2.options, {
           socket,
           servername: hostHeader ? hostHeader.replace(/:.*$/, "") : options.host
         });
         var secureSocket = tls.connect(0, tlsOptions);
-        self.sockets[self.sockets.indexOf(socket)] = secureSocket;
+        self2.sockets[self2.sockets.indexOf(socket)] = secureSocket;
         cb(secureSocket);
       });
     }
@@ -2207,11 +2439,56 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
 });
 
 // src/index.js
+var memorize = require_lodash_memoize_4_1_2_lodash();
 var { execSync } = require("child_process");
 var core = require_core();
 var https = require("https");
 var fs = require("fs");
 var repo = process.env.GITHUB_REPOSITORY;
+var { MANUAL } = process.env;
+function getConfig() {
+  const config2 = JSON.parse(fs.readFileSync("./config.json", "utf-8"));
+  const token = fs.readFileSync("./TOKEN", "utf-8");
+  config2.token = token;
+  return config2;
+}
+var config = getConfig();
+function dateFormat(date) {
+  return date.toISOString().split("T")[0];
+}
+function getRanges(startDate, endDate) {
+  const result = [];
+  const currentDate = new Date(startDate);
+  const lastDate = new Date(endDate);
+  while (currentDate.getDay() !== 1) {
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  while (currentDate <= lastDate) {
+    const start = new Date(currentDate);
+    let end;
+    while (currentDate.getDay() !== 5) {
+      currentDate.setDate(currentDate.getDate() + 1);
+      if (currentDate <= lastDate) {
+        end = new Date(currentDate);
+      }
+    }
+    if (end) {
+      result.push([dateFormat(start), dateFormat(end)]);
+    }
+    currentDate.setDate(currentDate.getDate() + 3);
+    while (currentDate.getDay() !== 1) {
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+  }
+  const output = [];
+  for (let i = 0; i < result.length; i++) {
+    if (new Date(result[i][1]) > /* @__PURE__ */ new Date()) {
+      break;
+    }
+    output.push(result[i]);
+  }
+  return output;
+}
 function getRange() {
   const today = /* @__PURE__ */ new Date();
   const lastWeek = new Date(
@@ -2222,37 +2499,61 @@ function getRange() {
   const format = (date) => date.toISOString().split("T")[0];
   return [format(lastWeek), format(today)];
 }
-var range = getRange();
 function exec(command) {
   return execSync(command).toString();
 }
+var status = "idle";
+var requestQueue = [];
+var limit = 100;
+var interval = setInterval(() => {
+  if (status === "idle" && requestQueue.length > 0) {
+    const task = requestQueue.shift();
+    if (task) {
+      status = "running";
+      task().then(() => {
+        status = "idle";
+      });
+    }
+  }
+  if (requestQueue.length === 0) {
+    clearInterval(interval);
+  }
+}, limit);
 async function request(search) {
   const url = `https://api.github.com/search/${search}`;
   const headers = {
-    "User-Agent": "request",
-    Authorization: `Bearer ${core.getInput("GITHUB_TOKEN")}`
+    "User-Agent": "requestMemo",
+    Authorization: `Bearer ${core.getInput("GITHUB_TOKEN") || config.token}`
   };
-  return new Promise((resolve, reject) => {
-    https.get(url, { headers }, (res) => {
-      let data = "";
-      res.on("data", (chunk) => {
-        data += chunk;
-      });
-      res.on("end", () => {
-        resolve(JSON.parse(data));
-      });
-    }).on("error", reject);
+  const promise = new Promise((resolve, reject) => {
+    const callback = () => new Promise((rsv) => {
+      https.get(url, { headers }, (res) => {
+        let data = "";
+        res.on("data", (chunk) => {
+          data += chunk;
+        });
+        res.on("end", () => {
+          console.log(url);
+          resolve(JSON.parse(data));
+          rsv();
+        });
+      }).on("error", reject);
+    });
+    requestQueue.push(callback);
   });
+  return promise;
 }
-function getCommitCount() {
-  const [since, until] = range;
-  const command = `git rev-list --count --since=${since} --before=${until} HEAD`;
-  const result = exec(command);
-  return parseInt(result.replace("\n", ""));
+var requestMemo = memorize(request, (...args) => JSON.stringify(args));
+async function getCommitCount(range2) {
+  const [since, until] = range2;
+  const result = await requestMemo(
+    `commits?q=repo:${repo}+author-date:${since}..${until}`
+  );
+  return result.total_count;
 }
-async function getOpenIssueCount() {
-  const [since, until] = range;
-  const open_issues = await request(
+async function getOpenIssueCount(range2) {
+  const [since, until] = range2;
+  const open_issues = await requestMemo(
     `issues?q=repo:${repo}+is:issue+is:open+created:${since}..${until}`
   );
   return {
@@ -2260,9 +2561,9 @@ async function getOpenIssueCount() {
     issues: open_issues.items
   };
 }
-async function getClosedIssueCount() {
-  const [since, until] = range;
-  const closed_issues = await request(
+async function getClosedIssueCount(range2) {
+  const [since, until] = range2;
+  const closed_issues = await requestMemo(
     `issues?q=repo:${repo}+is:issue+is:closed+created:${since}..${until}`
   );
   return {
@@ -2270,9 +2571,9 @@ async function getClosedIssueCount() {
     issues: closed_issues.items
   };
 }
-async function getOpenPRCount() {
-  const [since, until] = range;
-  const open_prs = await request(
+async function getOpenPRCount(range2) {
+  const [since, until] = range2;
+  const open_prs = await requestMemo(
     `issues?q=repo:${repo}+is:pr+is:open+created:${since}..${until}`
   );
   return {
@@ -2280,9 +2581,9 @@ async function getOpenPRCount() {
     prs: open_prs.items
   };
 }
-async function getClosedPRCount() {
-  const [since, until] = range;
-  const closed_prs = await request(
+async function getClosedPRCount(range2) {
+  const [since, until] = range2;
+  const closed_prs = await requestMemo(
     `issues?q=repo:${repo}+is:pr+is:closed+created:${since}..${until}`
   );
   return {
@@ -2290,27 +2591,36 @@ async function getClosedPRCount() {
     prs: closed_prs.items
   };
 }
-async function getAddedLineCount() {
-  const [since, until] = range;
+async function getAddedLineCount(range2) {
+  if (MANUAL)
+    return;
+  const [since, until] = range2;
   const command = `git log --since=${since} --before=${until} --pretty=tformat: --numstat | awk '{ add += $1 } END { print add }' -`;
   const result = exec(command);
   return parseInt(result.replace("\n", ""));
 }
-async function getDeletedLineCount() {
-  const [since, until] = range;
+async function getDeletedLineCount(range2) {
+  if (MANUAL)
+    return;
+  const [since, until] = range2;
   const command = `git log --since=${since} --before=${until} --pretty=tformat: --numstat | awk '{ del += $2 } END { print del }' -`;
   const result = exec(command);
   return parseInt(result.replace("\n", ""));
 }
-async function getContributorIds() {
-  const [since, until] = range;
-  const result = await request(
+async function getContributorIds(range2) {
+  const [since, until] = range2;
+  const result = await requestMemo(
     `commits?q=repo:${repo}+author-date:${since}..${until}`
   );
-  const contributors = Array.from(
-    new Set(result.items.map((item) => item.author.login))
-  );
-  return contributors;
+  try {
+    const contributors = Array.from(
+      new Set(result.items.map((item) => item?.author?.login))
+    ).filter(Boolean);
+    return contributors;
+  } catch {
+    console.log(result);
+    return ["error: " + result.message];
+  }
 }
 var Metric = [
   getCommitCount,
@@ -2322,8 +2632,8 @@ var Metric = [
   getDeletedLineCount,
   getContributorIds
 ];
-async function stats(metric = Metric) {
-  const data = await Promise.all(metric.map((fn) => fn()));
+async function stats(metric = Metric, range2) {
+  const data = await Promise.all(metric.map((fn) => fn(range2)));
   const [
     commit_count,
     { count: open_issue_count, issues: open_issues },
@@ -2349,25 +2659,25 @@ async function stats(metric = Metric) {
     contributors
   };
 }
-function exportResultToMarkdown(rp) {
+function exportResultToMarkdown(rp, range2) {
   const {
-    commit_count,
-    open_issue_count,
-    open_issues,
-    closed_issue_count,
-    closed_issues,
-    open_pr_count,
-    open_prs,
-    closed_pr_count,
-    closed_prs,
-    added_line_count,
-    deleted_line_count,
-    contributors
+    commit_count = "-",
+    open_issue_count = "-",
+    open_issues = [],
+    closed_issue_count = "-",
+    closed_issues = [],
+    open_pr_count = "-",
+    open_prs = [],
+    closed_pr_count = "-",
+    closed_prs = [],
+    added_line_count = "-",
+    deleted_line_count = "-",
+    contributors = []
   } = rp;
   const header = `| \u6307\u6807 | \u8BE6\u60C5 |
 | --- | --- |
 `;
-  const content = `|\u65F6\u95F4| \`${range[0]}\`-\`${range[1]}\` |
+  const content = `|\u65F6\u95F4| \`${range2[0]}\`-\`${range2[1]}\` |
 |\u4ED3\u5E93|\`${repo}\`|
 |Commit \u6570|\`${commit_count}\`|
 |Issue|\u65B0\u589E: \`${open_issue_count}\` \u5173\u95ED: \`${closed_issue_count}\`|
@@ -2433,9 +2743,25 @@ async function submit(md) {
     core.setFailed(error.message);
   }
 }
-async function run() {
-  const rp = await stats();
-  const content = exportResultToMarkdown(rp);
-  submit(content);
+async function run(range2 = getRange()) {
+  const rp = await stats(Metric, range2);
+  const content = exportResultToMarkdown(rp, range2);
+  !MANUAL && submit(content);
+  return content;
 }
-run();
+if (MANUAL) {
+  const ranges = getRanges(...config.range);
+  config.repos.forEach(async (rp) => {
+    repo = rp;
+    const contents = (await Promise.all(ranges.map(run))).map((c, i) => `# ${ranges[i].join("->")}
+
+${c}`).join("\n\n");
+    fs.writeFileSync(
+      `./reports/${rp.split("/")[1]}(${config.range.join("->")}).md`,
+      contents
+    );
+    console.log("done");
+  });
+} else {
+  run();
+}

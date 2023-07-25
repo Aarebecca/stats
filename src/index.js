@@ -2,12 +2,76 @@
  * statistic repo
  */
 
+const memorize = require('lodash.memoize');
 const { execSync } = require('child_process');
 const core = require('@actions/core');
 const https = require('https');
 const fs = require('fs');
 
-const repo = process.env.GITHUB_REPOSITORY;
+let repo = process.env.GITHUB_REPOSITORY;
+
+const { MANUAL } = process.env;
+
+function getConfig() {
+  const config = JSON.parse(fs.readFileSync('./config.json', 'utf-8'));
+  const token = fs.readFileSync('./TOKEN', 'utf-8');
+  config.token = token;
+  return config;
+}
+
+const config = getConfig();
+
+function dateFormat(date) {
+  return date.toISOString().split('T')[0];
+}
+
+function getRanges(startDate, endDate) {
+  const result = [];
+
+  const currentDate = new Date(startDate);
+  const lastDate = new Date(endDate);
+
+  // 定位到本月第一个周一
+  while (currentDate.getDay() !== 1) {
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  while (currentDate <= lastDate) {
+    const start = new Date(currentDate); // 复制当前日期对象作为范围的起始日期
+    let end;
+
+    // 定位到本周五
+    while (currentDate.getDay() !== 5) {
+      currentDate.setDate(currentDate.getDate() + 1);
+      if (currentDate <= lastDate) {
+        end = new Date(currentDate); // 复制当前日期对象作为范围的结束日期
+      }
+    }
+
+    if (end) {
+      result.push([dateFormat(start), dateFormat(end)]);
+    }
+
+    // 移动到下个月的第一个周一
+    currentDate.setDate(currentDate.getDate() + 3);
+
+    while (currentDate.getDay() !== 1) {
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+  }
+
+  const output = [];
+
+  for (let i = 0; i < result.length; i++) {
+    // 如果截止日期在今天之后，那么就不统计
+    if (new Date(result[i][1]) > new Date()) {
+      break;
+    }
+    output.push(result[i]);
+  }
+
+  return output;
+}
 
 /**
  * get today and last week in format YYYY-MM-DD
@@ -23,8 +87,6 @@ function getRange() {
   return [format(lastWeek), format(today)];
 }
 
-const range = getRange();
-
 /**
  * execute command in shell
  */
@@ -32,48 +94,78 @@ function exec(command) {
   return execSync(command).toString();
 }
 
+let status = 'idle';
+const requestQueue = [];
+const limit = 100;
+
+const interval = setInterval(() => {
+  if (status === 'idle' && requestQueue.length > 0) {
+    const task = requestQueue.shift();
+    if (task) {
+      status = 'running';
+      task().then(() => {
+        status = 'idle';
+      });
+    }
+  }
+  if (requestQueue.length === 0) {
+    clearInterval(interval);
+  }
+}, limit);
+
 /**
- * request github api
+ * requestMemo github api
  */
 async function request(search) {
   const url = `https://api.github.com/search/${search}`;
   const headers = {
-    'User-Agent': 'request',
-    Authorization: `Bearer ${core.getInput('GITHUB_TOKEN')}`,
+    'User-Agent': 'requestMemo',
+    Authorization: `Bearer ${core.getInput('GITHUB_TOKEN') || config.token}`,
   };
-  // make post request
-  return new Promise((resolve, reject) => {
-    https
-      .get(url, { headers }, (res) => {
-        let data = '';
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-        res.on('end', () => {
-          resolve(JSON.parse(data));
-        });
-      })
-      .on('error', reject);
+  // make post requestMemo
+  const promise = new Promise((resolve, reject) => {
+    const callback = () =>
+      new Promise((rsv) => {
+        https
+          .get(url, { headers }, (res) => {
+            let data = '';
+            res.on('data', (chunk) => {
+              data += chunk;
+            });
+            res.on('end', () => {
+              console.log(url);
+              resolve(JSON.parse(data));
+              rsv();
+            });
+          })
+          .on('error', reject);
+      });
+
+    requestQueue.push(callback);
   });
+
+  return promise;
 }
+
+const requestMemo = memorize(request, (...args) => JSON.stringify(args));
 
 /**
  * get commit count in range
  */
-function getCommitCount() {
+async function getCommitCount(range) {
   const [since, until] = range;
-  const command = `git rev-list --count --since=${since} --before=${until} HEAD`;
-  const result = exec(command);
-  // format
-  return parseInt(result.replace('\n', ''));
+  const result = await requestMemo(
+    `commits?q=repo:${repo}+author-date:${since}..${until}`
+  );
+  return result.total_count;
 }
 
 /**
  * get open issue count in range
  */
-async function getOpenIssueCount() {
+async function getOpenIssueCount(range) {
   const [since, until] = range;
-  const open_issues = await request(
+  const open_issues = await requestMemo(
     `issues?q=repo:${repo}+is:issue+is:open+created:${since}..${until}`
   );
   return {
@@ -85,9 +177,9 @@ async function getOpenIssueCount() {
 /**
  * get closed issue count in range
  */
-async function getClosedIssueCount() {
+async function getClosedIssueCount(range) {
   const [since, until] = range;
-  const closed_issues = await request(
+  const closed_issues = await requestMemo(
     `issues?q=repo:${repo}+is:issue+is:closed+created:${since}..${until}`
   );
   return {
@@ -99,9 +191,9 @@ async function getClosedIssueCount() {
 /**
  * get open pr count in range
  */
-async function getOpenPRCount() {
+async function getOpenPRCount(range) {
   const [since, until] = range;
-  const open_prs = await request(
+  const open_prs = await requestMemo(
     `issues?q=repo:${repo}+is:pr+is:open+created:${since}..${until}`
   );
   return {
@@ -113,9 +205,9 @@ async function getOpenPRCount() {
 /**
  * get closed pr count in range
  */
-async function getClosedPRCount() {
+async function getClosedPRCount(range) {
   const [since, until] = range;
-  const closed_prs = await request(
+  const closed_prs = await requestMemo(
     `issues?q=repo:${repo}+is:pr+is:closed+created:${since}..${until}`
   );
   return {
@@ -127,7 +219,8 @@ async function getClosedPRCount() {
 /**
  * get added line count in range
  */
-async function getAddedLineCount() {
+async function getAddedLineCount(range) {
+  if (MANUAL) return;
   const [since, until] = range;
   const command = `git log --since=${since} --before=${until} --pretty=tformat: --numstat | awk '{ add += $1 } END { print add }' -`;
   const result = exec(command);
@@ -137,7 +230,8 @@ async function getAddedLineCount() {
 /**
  * get deleted line count in range
  */
-async function getDeletedLineCount() {
+async function getDeletedLineCount(range) {
+  if (MANUAL) return;
   const [since, until] = range;
   const command = `git log --since=${since} --before=${until} --pretty=tformat: --numstat | awk '{ del += $2 } END { print del }' -`;
   const result = exec(command);
@@ -147,15 +241,20 @@ async function getDeletedLineCount() {
 /**
  * get contributors' id in range
  */
-async function getContributorIds() {
+async function getContributorIds(range) {
   const [since, until] = range;
-  const result = await request(
+  const result = await requestMemo(
     `commits?q=repo:${repo}+author-date:${since}..${until}`
   );
-  const contributors = Array.from(
-    new Set(result.items.map((item) => item.author.login))
-  );
-  return contributors;
+  try {
+    const contributors = Array.from(
+      new Set(result.items.map((item) => item?.author?.login))
+    ).filter(Boolean);
+    return contributors;
+  } catch {
+    console.log(result);
+    return ['error: ' + result.message];
+  }
 }
 
 const Metric = [
@@ -169,8 +268,8 @@ const Metric = [
   getContributorIds,
 ];
 
-async function stats(metric = Metric) {
-  const data = await Promise.all(metric.map((fn) => fn()));
+async function stats(metric = Metric, range) {
+  const data = await Promise.all(metric.map((fn) => fn(range)));
   const [
     commit_count,
     { count: open_issue_count, issues: open_issues },
@@ -197,20 +296,20 @@ async function stats(metric = Metric) {
   };
 }
 
-function exportResultToMarkdown(rp) {
+function exportResultToMarkdown(rp, range) {
   const {
-    commit_count,
-    open_issue_count,
-    open_issues,
-    closed_issue_count,
-    closed_issues,
-    open_pr_count,
-    open_prs,
-    closed_pr_count,
-    closed_prs,
-    added_line_count,
-    deleted_line_count,
-    contributors,
+    commit_count = '-',
+    open_issue_count = '-',
+    open_issues = [],
+    closed_issue_count = '-',
+    closed_issues = [],
+    open_pr_count = '-',
+    open_prs = [],
+    closed_pr_count = '-',
+    closed_prs = [],
+    added_line_count = '-',
+    deleted_line_count = '-',
+    contributors = [],
   } = rp;
   const header = `| 指标 | 详情 |\n| --- | --- |\n`;
   const content = `|时间| \`${range[0]}\`-\`${range[1]}\` |
@@ -301,10 +400,26 @@ async function submit(md) {
   }
 }
 
-async function run() {
-  const rp = await stats();
-  const content = exportResultToMarkdown(rp);
-  submit(content);
+async function run(range = getRange()) {
+  const rp = await stats(Metric, range);
+  const content = exportResultToMarkdown(rp, range);
+  !MANUAL && submit(content);
+  return content;
 }
 
-run();
+if (MANUAL) {
+  const ranges = getRanges(...config.range);
+  config.repos.forEach(async (rp) => {
+    repo = rp;
+    const contents = (await Promise.all(ranges.map(run)))
+      .map((c, i) => `# ${ranges[i].join('->')}\n\n${c}`)
+      .join('\n\n');
+    fs.writeFileSync(
+      `./reports/${rp.split('/')[1]}(${config.range.join('->')}).md`,
+      contents
+    );
+    console.log('done');
+  });
+} else {
+  run();
+}

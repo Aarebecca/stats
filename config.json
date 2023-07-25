@@ -1,0 +1,11 @@
+{
+  "repos": [
+    "antvis/g",
+    "antvis/g2",
+    "antvis/g6",
+    "antvis/l7",
+    "antvis/g6vp",
+    "antvis/l7vp"
+  ],
+  "range": ["2023-07-01", "2023-07-31"]
+}
