@@ -8,8 +8,6 @@ const core = require('@actions/core');
 const https = require('https');
 const fs = require('fs');
 
-let repo = process.env.GITHUB_REPOSITORY;
-
 const { MANUAL } = process.env;
 
 function getConfig() {
@@ -152,7 +150,7 @@ const requestMemo = memorize(request, (...args) => JSON.stringify(args));
 /**
  * get commit count in range
  */
-async function getCommitCount(range) {
+async function getCommitCount(range, repo) {
   const [since, until] = range;
   const result = await requestMemo(
     `commits?q=repo:${repo}+author-date:${since}..${until}`
@@ -163,7 +161,7 @@ async function getCommitCount(range) {
 /**
  * get open issue count in range
  */
-async function getOpenIssueCount(range) {
+async function getOpenIssueCount(range, repo) {
   const [since, until] = range;
   const open_issues = await requestMemo(
     `issues?q=repo:${repo}+is:issue+is:open+created:${since}..${until}`
@@ -177,7 +175,7 @@ async function getOpenIssueCount(range) {
 /**
  * get closed issue count in range
  */
-async function getClosedIssueCount(range) {
+async function getClosedIssueCount(range, repo) {
   const [since, until] = range;
   const closed_issues = await requestMemo(
     `issues?q=repo:${repo}+is:issue+is:closed+created:${since}..${until}`
@@ -191,7 +189,7 @@ async function getClosedIssueCount(range) {
 /**
  * get open pr count in range
  */
-async function getOpenPRCount(range) {
+async function getOpenPRCount(range, repo) {
   const [since, until] = range;
   const open_prs = await requestMemo(
     `issues?q=repo:${repo}+is:pr+is:open+created:${since}..${until}`
@@ -205,7 +203,7 @@ async function getOpenPRCount(range) {
 /**
  * get closed pr count in range
  */
-async function getClosedPRCount(range) {
+async function getClosedPRCount(range, repo) {
   const [since, until] = range;
   const closed_prs = await requestMemo(
     `issues?q=repo:${repo}+is:pr+is:closed+created:${since}..${until}`
@@ -219,7 +217,7 @@ async function getClosedPRCount(range) {
 /**
  * get added line count in range
  */
-async function getAddedLineCount(range) {
+async function getAddedLineCount(range, repo) {
   if (MANUAL) return;
   const [since, until] = range;
   const command = `git log --since=${since} --before=${until} --pretty=tformat: --numstat | awk '{ add += $1 } END { print add }' -`;
@@ -230,7 +228,7 @@ async function getAddedLineCount(range) {
 /**
  * get deleted line count in range
  */
-async function getDeletedLineCount(range) {
+async function getDeletedLineCount(range, repo) {
   if (MANUAL) return;
   const [since, until] = range;
   const command = `git log --since=${since} --before=${until} --pretty=tformat: --numstat | awk '{ del += $2 } END { print del }' -`;
@@ -241,7 +239,7 @@ async function getDeletedLineCount(range) {
 /**
  * get contributors' id in range
  */
-async function getContributorIds(range) {
+async function getContributorIds(range, repo) {
   const [since, until] = range;
   const result = await requestMemo(
     `commits?q=repo:${repo}+author-date:${since}..${until}`
@@ -268,8 +266,8 @@ const Metric = [
   getContributorIds,
 ];
 
-async function stats(metric = Metric, range) {
-  const data = await Promise.all(metric.map((fn) => fn(range)));
+async function stats(metric = Metric, range, repo) {
+  const data = await Promise.all(metric.map((fn) => fn(range, repo)));
   const [
     commit_count,
     { count: open_issue_count, issues: open_issues },
@@ -296,7 +294,7 @@ async function stats(metric = Metric, range) {
   };
 }
 
-function exportResultToMarkdown(rp, range) {
+function exportResultToMarkdown(rp, range, repo) {
   const {
     commit_count = '-',
     open_issue_count = '-',
@@ -393,29 +391,30 @@ async function submit(md) {
       // 提交 Markdown 表格文件
       exec(`git add ${file}.md`);
       exec(`git commit -m "chore: Weekly stats (${file})."`);
-      exec(`git push origin "${branchName}"`);
+      exec(`git push origin "${branchName}" --force`);
     }
   } catch (error) {
     core.setFailed(error.message);
   }
 }
 
-async function run(range = getRange()) {
-  const rp = await stats(Metric, range);
-  const content = exportResultToMarkdown(rp, range);
+async function run(range = getRange(), repo = process.env.GITHUB_REPOSITORY) {
+  const rp = await stats(Metric, range, repo);
+  const content = exportResultToMarkdown(rp, range, repo);
   !MANUAL && submit(content);
   return content;
 }
 
 if (MANUAL) {
   const ranges = getRanges(...config.range);
-  config.repos.forEach(async (rp) => {
-    repo = rp;
-    const contents = (await Promise.all(ranges.map(run)))
+  config.repos.forEach(async (repo) => {
+    const contents = (
+      await Promise.all(ranges.map((range) => run(range, repo)))
+    )
       .map((c, i) => `# ${ranges[i].join('->')}\n\n${c}`)
       .join('\n\n');
     fs.writeFileSync(
-      `./reports/${rp.split('/')[1]}(${config.range.join('->')}).md`,
+      `./reports/${repo.split('/')[1]}(${config.range.join('->')}).md`,
       contents
     );
     console.log('done');
