@@ -382,6 +382,7 @@ async function submit(md) {
         exec('git commit --allow-empty -m "Create empty branch"');
       } else {
         exec(`git checkout "${branchName}"`);
+        exec(`git pull origin "${branchName}"`);
       }
 
       const file = range[1];
