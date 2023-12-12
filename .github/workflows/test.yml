@@ -3,6 +3,9 @@ name: Weekly Stats
 on:
   schedule:
     - cron: '0 20 * * 4'
+  # tag
+  issues:
+    types: [labeled]
 
 jobs:
   run:
